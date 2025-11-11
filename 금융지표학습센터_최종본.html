@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>금융 지표 학습센터</title>
+
+  <!-- Tailwind CSS: defer 제거 & 최상단 배치 (FOUC 방지) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- API 키 (학습용 하드코딩; 운영은 프록시 권장) -->
+  <meta name="x-api-key" content="AIzaSyBmaHdOmJts1MRUYb5yCopqTUAeUpWC7d8" />
+  <script>window.GEMINI_API_KEY = "AIzaSyBmaHdOmJts1MRUYb5yCopqTUAeUpWC7d8";</script>
+
+  <style>
+    :root{
+      --grad-start:#667eea;--grad-end:#764ba2;
+      --card-bg:rgba(255,255,255,.9);--glass-bg:rgba(255,255,255,.95);
+      --ring:rgba(102,126,234,.12);--shadow:0 8px 32px rgba(0,0,0,.08);--shadow-hover:0 16px 36px rgba(0,0,0,.12)
+    }
+    *{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif}
+    body{min-height:100vh;background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%)}
+
+    .hero-section{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--grad-start),var(--grad-end))}
+    .hero-section::before{content:"";position:absolute;inset:0;opacity:.3;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat}
+
+    .card-modern{background:var(--card-bg);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.2);box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s}
+    .card-modern:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover)}
+    .glass-card{background:var(--glass-bg);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.3)}
+
+    .btn-primary{background:linear-gradient(135deg,var(--grad-start),var(--grad-end));color:#fff;font-weight:700;letter-spacing:.02em;transition:transform .15s,box-shadow .2s}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 25px rgba(102,126,234,.35)}
+    .btn-primary:active{transform:translateY(0)}
+    .btn-primary:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
+
+    .input-modern{background:rgba(255,255,255,.9);border:2px solid rgba(226,232,240,.8);transition:box-shadow .2s,border-color .2s,background .2s;backdrop-filter:blur(10px)}
+    .input-modern:focus{background:#fff;border-color:var(--grad-start);box-shadow:0 0 0 4px var(--ring);outline:none}
+    .input-modern:focus-visible{outline:2px solid var(--grad-start);outline-offset:2px}
+
+    .keyword-tag{background:rgba(255,255,255,.9);border:1px solid rgba(226,232,240,.8);color:#475569;font-weight:600;transition:transform .12s,box-shadow .12s,background .2s,color .2s}
+    .keyword-tag:hover{background:var(--grad-start);color:#fff;transform:translateY(-1px);box-shadow:0 6px 14px rgba(102,126,234,.28)}
+
+    .search-dropdown{background:rgba(255,255,255,.98);backdrop-filter:blur(20px);border:1px solid rgba(226,232,240,.8);box-shadow:0 10px 40px rgba(0,0,0,.08);max-height:400px;overflow-y:auto}
+    .search-dropdown-item{transition:background .15s,transform .15s;border-bottom:1px solid rgba(226,232,240,.3)}
+    .search-dropdown-item:hover,.search-dropdown-item[aria-selected="true"]{background:rgba(102,126,234,.1);transform:translateX(2px)}
+
+    .search-container{position:relative}
+    .search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#9ca3af;pointer-events:none}
+    .clear-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);color:#9ca3af;cursor:pointer;opacity:0;transition:opacity .15s}
+    .clear-icon.visible{opacity:1}
+    .search-input{padding-left:48px!important;padding-right:48px!important}
+
+    .related-terms{background:linear-gradient(135deg,rgba(255,247,237,.9),rgba(254,243,199,.9));border:1px solid rgba(251,191,36,.22);backdrop-filter:blur(15px)}
+    .related-term{background:rgba(255,255,255,.85);border:1px solid rgba(251,191,36,.35);transition:transform .12s,box-shadow .12s,background .2s,border-color .2s}
+    .related-term:hover{background:rgba(251,191,36,.1);border-color:#f59e0b;transform:translateY(-1px);box-shadow:0 4px 12px rgba(251,191,36,.28)}
+
+    .result-highlight{animation:highlightPulse 1.8s ease-in-out}
+    @keyframes highlightPulse{0%{box-shadow:0 8px 32px rgba(0,0,0,.08)}50%{box-shadow:0 20px 60px rgba(102,126,234,.28);transform:translateY(-6px)}100%{box-shadow:0 8px 32px rgba(0,0,0,.08)}}
+    .scroll-reveal{opacity:0;transform:translateY(22px);transition:all .6s cubic-bezier(.4,0,.2,1)}
+    .scroll-reveal.revealed{opacity:1;transform:translateY(0)}
+
+    .tip-card{background:linear-gradient(135deg,rgba(255,245,235,.9),rgba(254,235,200,.9));border:1px solid rgba(251,146,60,.22);backdrop-filter:blur(20px)}
+    .investment-tip-card{background:linear-gradient(135deg,rgba(236,253,245,.9),rgba(209,250,229,.9));border:1px solid rgba(34,197,94,.22);backdrop-filter:blur(20px)}
+
+    .loading-spinner{border:3px solid rgba(255,255,255,.35);border-top:3px solid #fff;border-radius:50%;width:20px;height:20px;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .icon-20{width:20px;height:20px}
+
+    @media (prefers-reduced-motion:reduce){
+      *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero -->
+  <header class="hero-section">
+    <div class="max-w-6xl mx-auto px-6 py-16 relative z-10 text-center">
+      <h1 class="text-5xl md:text-6xl font-bold text-white mb-6">📊 금융 지표 학습센터</h1>
+      <p class="text-xl text-blue-100 mb-8">복잡한 금융 용어를 쉽고 직관적으로 이해하세요.<br>AI가 도와주는 맞춤형 학습 경험을 만나보세요.</p>
+
+      <!-- 검색 -->
+      <div class="max-w-2xl mx-auto">
+        <div class="glass-card p-8 rounded-2xl">
+          <div class="mb-6 search-container">
+            <div class="search-icon" aria-hidden="true">
+              <svg class="icon-20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.71 20.29l-3.4-3.39A9 9 0 1 0 16.9 18.9l3.39 3.4a1 1 0 0 0 1.42 0 1 1 0 0 0 0-1.42zM11 18a7 7 0 1 1 7-7 7 7 0 0 1-7 7z"/></svg>
+            </div>
+
+            <input id="searchText" type="text" autocomplete="off"
+              class="input-modern search-input w-full p-4 rounded-xl text-lg placeholder-gray-400"
+              placeholder="궁금한 금융 용어를 입력하세요 (예: ROE, PER, 듀레이션)"
+              role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="searchDropdown" />
+
+            <button id="clearIcon" type="button" class="clear-icon" aria-label="입력 지우기">
+              <svg class="icon-20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.3 5.71a1 1 0 0 0-1.42 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.42 1.42L12 13.41l4.89 4.9a1 1 0 0 0 1.42-1.42L13.41 12l4.9-4.89a1 1 0 0 0 0-1.4z"/></svg>
+            </button>
+
+            <div id="searchDropdown" class="search-dropdown absolute top-full left-0 right-0 mt-2 rounded-xl hidden z-50" role="listbox" aria-label="자동완성 목록">
+              <div id="dropdownContent"></div>
+            </div>
+          </div>
+
+          <button id="searchButton" type="button" class="btn-primary w-full py-4 px-8 rounded-xl text-lg">
+            <span id="buttonContent" class="inline-flex items-center justify-center gap-2">💡 지금 바로 분석하기</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-12">
+    <!-- 빠른 검색 -->
+    <section class="mb-12" aria-labelledby="quick-search-heading">
+      <div class="text-center mb-8">
+        <h2 id="quick-search-heading" class="text-3xl font-bold text-gray-800 mb-2">빠른 검색</h2>
+        <p class="text-gray-600">자주 찾는 금융 지표들을 클릭해보세요</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        <div class="card-modern p-6 rounded-2xl">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><span aria-hidden="true">📈</span>경제지표</h3>
+          <div class="flex flex-wrap gap-2">
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="GDP" type="button">GDP</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="소비자물가지수" type="button">CPI</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="생산자물가지수" type="button">PPI</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="실업률" type="button">실업률</button>
+          </div>
+        </div>
+        <div class="card-modern p-6 rounded-2xl">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><span aria-hidden="true">💰</span>금리·통화</h3>
+          <div class="flex flex-wrap gap-2">
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="기준금리" type="button">기준금리</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="콜금리" type="button">콜금리</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="환율" type="button">환율</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="통화량" type="button">통화량</button>
+          </div>
+        </div>
+        <div class="card-modern p-6 rounded-2xl">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><span aria-hidden="true">🏢</span>시장지표</h3>
+          <div class="flex flex-wrap gap-2">
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="KOSPI" type="button">KOSPI</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="KOSDAQ" type="button">KOSDAQ</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="VIX" type="button">VIX</button>
+            <button class="keyword-tag px-4 py-2 rounded-full text-sm" data-keyword="국고채" type="button">국고채</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 결과 + 사이드바 -->
+    <section class="grid lg:grid-cols-3 gap-8">
+      <!-- 결과 -->
+      <div class="lg:col-span-2 space-y-8">
+        <div id="relatedTermsSection" class="hidden scroll-reveal">
+          <div class="related-terms p-6 rounded-2xl">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><span aria-hidden="true">🔗</span>연관 검색어</h3>
+            <div id="relatedTermsList" class="flex flex-wrap gap-2"></div>
+          </div>
+        </div>
+
+        <section id="searchResults" class="hidden scroll-reveal" aria-live="polite" aria-atomic="true">
+          <div class="card-modern p-8 rounded-2xl">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 flex items-center gap-3"><span aria-hidden="true">📋</span><span id="resultTitle">검색 결과</span></h2>
+            <div id="resultContent" class="space-y-6"></div>
+          </div>
+        </section>
+
+        <section id="quizSection" class="hidden scroll-reveal">
+          <div class="card-modern p-8 rounded-2xl">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-2xl font-bold text-gray-800 flex items-center gap-3"><span aria-hidden="true">🎯</span>학습 확인 퀴즈</h3>
+              <div id="quizScore" class="text-sm font-medium text-gray-600"></div>
+            </div>
+            <button id="quizButton" type="button" class="btn-primary w-full py-3 px-6 rounded-xl font-semibold mb-4">🚀 퀴즈 도전하기</button>
+            <div id="quizContent"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 사이드바 -->
+      <aside class="space-y-8">
+        <section class="card-modern p-6 rounded-2xl">
+          <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center gap-2"><span aria-hidden="true">📊</span>학습 현황</h3>
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">검색한 용어 수</span><span id="searchCount" class="font-semibold">0개</span></div>
+              <div class="w-full bg-gray-200 rounded-full h-3"><div id="searchProgress" class="h-3 rounded-full" style="width:0%; background:linear-gradient(90deg,var(--grad-start),var(--grad-end))"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-2"><span class="text-gray-600">퀴즈 정답률</span><span id="quizAccuracy" class="font-semibold">0%</span></div>
+              <div class="w-full bg-gray-200 rounded-full h-3"><div id="accuracyProgress" class="bg-green-400 h-3 rounded-full transition-all duration-300" style="width:0%"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tip-card p-6 rounded-2xl">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><span aria-hidden="true">💡</span>오늘의 금융 TIP</h3>
+          <div id="dailyTip" class="text-sm text-gray-700 leading-relaxed mb-4"></div>
+          <button id="changeTipBtn" type="button" class="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-full font-medium">🔄 다른 TIP 보기</button>
+        </section>
+
+        <section class="investment-tip-card p-6 rounded-2xl">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><span aria-hidden="true">💰</span>투자 활용 TIP</h3>
+          <div id="investmentTip" class="text-sm text-gray-700 leading-relaxed mb-4"></div>
+          <button id="changeInvTipBtn" type="button" class="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-full font-medium">💡 투자 아이디어 더보기</button>
+        </section>
+
+        <section class="card-modern p-6 rounded-2xl">
+          <div class="flex items-center gap-2 mb-3">
+            <span aria-hidden="true">🕒</span>
+            <h3 class="text-lg font-semibold text-gray-800">최근 검색어</h3>
+            <button id="clearHistory" type="button" class="text-xs text-gray-400 hover:text-red-500 ml-auto">모두 삭제</button>
+          </div>
+          <div id="recentSearches" class="space-y-2">
+            <p class="text-gray-500 text-sm">아직 검색 기록이 없습니다.</p>
+          </div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+  (()=>{'use strict';
+    const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+    const setText=(el,t)=>{if(el)el.textContent=t??''};const show=el=>el&&el.classList.remove('hidden');const hide=el=>el&&el.classList.add('hidden');
+    const escapeHTML=s=>(s??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
+    const debounce=(fn,w=180)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),w)}};
+    const inViewSmooth=el=>{if(!el)return;const prefersReduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;const top=el.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top,behavior:prefersReduced?'auto':'smooth'})};
+
+    const LS_RECENT='recentSearches';const searchedTerms=new Set();const quizStats={correct:0,total:0};
+    let recentSearches=[];try{recentSearches=JSON.parse(localStorage.getItem(LS_RECENT)||'[]')}catch{}
+    let currentObj=null;let highlightedIndex=-1;
+
+    const financialTerms=['PER','PBR','ROE','ROA','EPS','BPS','DPS','GDP','소비자물가지수','CPI','생산자물가지수','PPI','실업률','기준금리','콜금리','환율','통화량','M1','M2','KOSPI','KOSDAQ','VIX','국고채','회사채','신용등급','유동비율','당좌비율','부채비율','자기자본비율','이자보상배수','매출액증가율','영업이익률','순이익률','배당수익률','배당성향','듀레이션','컨벡서티','베타','알파','샤프비율','VAR','옵션','선물','ETF','REITs','파생상품','DCF','NPV','IRR','WACC','CAPM','몬테카를로','양적완화','테이퍼링','금리인상','인플레이션','디플레이션'];
+    const relatedTermsMap={'PER':['PBR','ROE','EPS','PSR'],'PBR':['PER','BPS','자기자본비율','ROE'],'ROE':['ROA','PER','PBR','자기자본비율'],'ROA':['ROE','영업이익률','순이익률','자산회전율'],'GDP':['CPI','PPI','실업률','경제성장률'],'VIX':['KOSPI','변동성','옵션','파생상품'],'KOSPI':['KOSDAQ','VIX','P/E','PBR'],'기준금리':['콜금리','국고채','회사채','통화정책'],'환율':['달러인덱스','무역수지','경상수지','외환보유액'],'CPI':['PPI','GDP','인플레이션','기준금리'],'배당수익률':['배당성향','배당커버리지','PER','PBR'],'유동비율':['당좌비율','부채비율','자기자본비율','재무안전성'],'ETF':['펀드','REITs','인덱스펀드','상장지수펀드'],'듀레이션':['컨벡서티','금리위험','채권','만기'],'베타':['알파','샤프비율','CAPM','시장위험']};
+    const basicFinancialTips=[{title:'📈 PER vs PBR',content:"PER은 주가수익비율로 '얼마나 비싼가?'를, PBR은 주가순자산비율로 '얼마나 저평가되었나?'를 보여줍니다. 둘 다 낮을수록 저평가 주식일 가능성이 높아요!"},{title:'💹 ROE와 ROA 구분',content:'ROE는 자기자본이익률로 주주 관점에서, ROA는 총자산이익률로 경영 효율성을 봅니다. ROE > 15%, ROA > 5%면 우량기업으로 볼 수 있어요.'},{title:'📊 배당수익률 vs 배당성향',content:'배당수익률은 주가 대비 배당금 비율, 배당성향은 순이익 대비 배당금 비율입니다. 높은 배당수익률이라도 배당성향이 80% 이상이면 지속가능성을 의심해야 해요.'},{title:'⚡ 유동비율과 당좌비율',content:'유동비율은 200% 이상, 당좌비율은 100% 이상이면 단기 안전성이 양호합니다. 특히 당좌비율은 재고자산을 제외한 진짜 유동성을 보여줘요.'},{title:'🏛️ 부채비율과 이자보상배수',content:'부채비율 200% 이하, 이자보상배수 5배 이상이면 재무 안정성이 우수합니다. 이자보상배수는 영업이익/이자비용으로 계산해요.'}];
+    const investmentTips=[{title:'📊 금리와 섹터 로테이션',content:'금리 상승기에는 은행주가 강세를, 금리 하락기에는 성장주(IT, 바이오)가 강세를 보입니다. 10년 국채 수익률 방향성을 보고 포트폴리오 비중을 조정하세요!'},{title:'💰 VIX 지수 활용법',content:'VIX 30 이상일 때 매수, 15 이하일 때 매도하는 역발상 전략이 효과적입니다. 공포와 탐욕 지수로 불리는 VIX는 시장 저점과 고점을 찾는 데 유용해요.'},{title:'📈 이동평균선 골든 크로스',content:'20일선이 60일선을 상향 돌파하면 단기 상승 신호, 60일선이 120일선을 돌파하면 중장기 상승 신호입니다. 거래량이 함께 늘어나면 신뢰도가 높아져요.'},{title:'🌍 환율과 수출주 연동성',content:'원달러 환율 상승(원화 약세) 시 수출 대기업이 유리하고, 환율 하락 시 내수주가 유리합니다. 1,300원 근처가 손익분기점인 기업들이 많아요.'},{title:'💎 밸류에이션 함정 피하기',content:'PER이 낮다고 무조건 저평가는 아닙니다. 업종 평균 PER, 성장률, ROE를 종합적으로 봐야 해요. PEG(PER/성장률) 1 이하면 합리적 가격이에요.'}];
+
+    const searchText=$('#searchText'),searchButton=$('#searchButton'),buttonContent=$('#buttonContent');
+    const searchResults=$('#searchResults'),resultTitle=$('#resultTitle'),resultContent=$('#resultContent');
+    const quizSection=$('#quizSection'),quizButton=$('#quizButton'),quizContent=$('#quizContent');
+    const searchDropdown=$('#searchDropdown'),dropdownContent=$('#dropdownContent'),clearIcon=$('#clearIcon');
+    const relatedTermsSection=$('#relatedTermsSection'),relatedTermsList=$('#relatedTermsList');
+    const searchCount=$('#searchCount'),searchProgress=$('#searchProgress');
+    const quizAccuracy=$('#quizAccuracy'),accuracyProgress=$('#accuracyProgress');
+    const recentSearchesBox=$('#recentSearches'),clearHistoryBtn=$('#clearHistory');
+    const changeTipBtn=$('#changeTipBtn'),changeInvTipBtn=$('#changeInvTipBtn');
+    const dailyTipBox=$('#dailyTip'),investmentTipBox=$('#investmentTip');
+
+    const getApiKey=()=>{const m=document.querySelector('meta[name="x-api-key"]');return(m&&m.content)||window.GEMINI_API_KEY||''};
+    const buildPrompt=q=>`당신은 금융 전문 강사입니다. \n"${q}"에 대해 아래 항목별로 간단하고 명확하게 한국어로 설명해 주세요. \n불필요한 문장은 쓰지 말고, 각 항목은 짧게 요약된 형태로만 작성해 주세요. \n반드시 JSON 형식으로만 반환하세요.\n\n항목:\n1. title: 용어명\n2. definition: 정의 (2~3문장 요약)\n3. method: 계산 방법 (공식 또는 간단한 방식)\n4. organization: 발표기관 (한국 기준)\n5. cycle: 발표주기 (월간/분기/연간 등)\n6. market_use: 주식/채권/ETF 등에서의 활용\n7. investment: 투자 시 활용법\n8. notes: 유의사항\n\n{\n  "title": "용어명",\n  "definition": "정의 설명",\n  "method": "계산 방법",\n  "organization": "발표기관",\n  "cycle": "발표주기",\n  "market_use": "시장 활용",\n  "investment": "투자 활용법",\n  "notes": "유의사항"\n}`;
+    const callGemini=async prompt=>{const key=getApiKey();if(!key)throw new Error('API 키가 설정되지 않았습니다. <meta name="x-api-key"> 형태로 넣어주세요.');const url=`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`;const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}]})});const data=await res.json();if(!res.ok)throw new Error(data?.error?.message||`HTTP ${res.status}`);return data.candidates?.[0]?.content?.parts?.[0]?.text||''};
+
+    const updateProgress=()=>{const cnt=searchedTerms.size;setText(searchCount,`${cnt}개`);const pct=Math.min((cnt/20)*100,100);searchProgress.style.width=`${pct}%`;if(quizStats.total>0){const acc=Math.round((quizStats.correct/quizStats.total)*100);setText(quizAccuracy,`${acc}%`);accuracyProgress.style.width=`${acc}%`}};
+    const renderRecentSearches=()=>{if(!recentSearches.length){recentSearchesBox.innerHTML='<p class="text-gray-500 text-sm">아직 검색 기록이 없습니다.</p>';return}recentSearchesBox.innerHTML=recentSearches.map(t=>`<button type="button" class="block w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg" data-action="search-term" data-term="${escapeHTML(t)}">${escapeHTML(t)}</button>`).join('')};
+    const pushRecent=t=>{if(!t)return;recentSearches=[t,...recentSearches.filter(x=>x!==t)].slice(0,10);localStorage.setItem(LS_RECENT,JSON.stringify(recentSearches));renderRecentSearches()};
+    const showRelatedTerms=term=>{const rel=relatedTermsMap[term]||[];if(!rel.length){hide(relatedTermsSection);return}relatedTermsList.innerHTML=rel.map(t=>`<button type="button" class="related-term px-4 py-2 rounded-full text-sm font-medium" data-action="search-term" data-term="${escapeHTML(t)}">${escapeHTML(t)}</button>`).join('');show(relatedTermsSection)};
+    const infoCard=(emoji,title,text,cls='')=>`<div class="p-6 ${cls} rounded-xl border-l-4"><h4 class="text-xl font-bold flex items-center gap-2 mb-3">${emoji}<span>${escapeHTML(title)}</span></h4><p class="text-gray-700 leading-relaxed">${escapeHTML(text)}</p></div>`;
+    const renderFromJson=obj=>{currentObj=obj;setText(resultTitle,obj.title||'검색 결과');
+      const def=infoCard('📘','정의',obj.definition,'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-500 text-blue-700');
+      const method=`<div class="p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-l-4 border-purple-500"><h4 class="text-xl font-bold text-purple-700 flex items-center gap-2 mb-3">🧮<span>계산 방법</span></h4><div class="bg-white p-4 rounded-lg shadow-sm text-gray-700">${escapeHTML(obj.method)}</div></div>`;
+      const orgCycle=`<div class="grid md:grid-cols-2 gap-4">${infoCard('🏛️','발표기관',obj.organization,'bg-gradient-to-r from-green-50 to-emerald-50 border-green-500 text-green-700')}${infoCard('⏰','발표주기',obj.cycle,'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-500 text-cyan-700')}</div>`;
+      const market=infoCard('📈','시장 활용',obj.market_use,'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-500 text-yellow-700');
+      const invest=infoCard('💼','투자 활용법',obj.investment,'bg-gradient-to-r from-teal-50 to-cyan-50 border-teal-500 text-teal-700');
+      const notes=infoCard('⚠️','유의사항',obj.notes,'bg-gradient-to-r from-red-50 to-pink-50 border-red-500 text-red-700');
+      resultContent.innerHTML=`<div class="grid gap-6">${def}${method}${orgCycle}${market}${invest}${notes}</div>`;
+      if(!searchedTerms.has(obj.title))searchedTerms.add(obj.title);pushRecent(obj.title);updateProgress();showRelatedTerms(obj.title);
+      show(quizSection);quizContent.innerHTML='';quizButton.onclick=()=>generateQuiz(obj);
+      show(searchResults);requestAnimationFrame(()=>{const c=searchResults.querySelector('.card-modern');if(c)c.classList.add('result-highlight')});inViewSmooth(searchResults);
+      $$('.scroll-reveal').forEach((el,i)=>setTimeout(()=>el.classList.add('revealed'),i*150));
+    };
+
+    const updateComboboxA11y=open=>{searchText.setAttribute('aria-expanded',open?'true':'false');if(!open)highlightedIndex=-1};
+    const renderAutocomplete=matches=>{dropdownContent.innerHTML=matches.map((t,i)=>`<div class="search-dropdown-item px-4 py-3 cursor-pointer flex items-center gap-3" role="option" aria-selected="${i===highlightedIndex}" data-index="${i}" data-term="${escapeHTML(t)}"><div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-semibold">${escapeHTML(t.charAt(0))}</div><div class="flex-1"><div class="font-medium text-gray-800">${escapeHTML(t)}</div><div class="text-xs text-gray-500">금융 지표</div></div><div class="text-gray-400" aria-hidden="true"><svg class="icon-20" viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 12.8l-2.9-2.9L4 11.5l4.5 4.5L20 4.5 18.4 3 8.5 12.8z"/></svg></div></div>`).join('');show(searchDropdown);updateComboboxA11y(true)};
+    const hideAutocomplete=()=>{hide(searchDropdown);updateComboboxA11y(false)};
+    const selectAutocomplete=term=>{searchText.value=term;clearIcon.classList.add('visible');hideAutocomplete();fetchGemini(term)};
+    const handleAutocomplete=debounce(q=>{if(!q.trim()){hideAutocomplete();return}const m=financialTerms.filter(t=>t.toLowerCase().includes(q.toLowerCase())).slice(0,8);m.length?renderAutocomplete(m):hideAutocomplete()},120);
+
+    const clearHistory=()=>{recentSearches=[];localStorage.removeItem(LS_RECENT);renderRecentSearches()};
+
+    const fetchGemini=async query=>{if(!query)return;buttonContent.innerHTML='<span class="loading-spinner"></span><span class="ml-2">분석 중...</span>';searchButton.disabled=true;
+      try{const raw=await callGemini(buildPrompt(query));const cleaned=raw.replace(/```json|```/g,'').trim();const obj=JSON.parse(cleaned);renderFromJson(obj)}
+      catch(e){show(searchResults);setText(resultTitle,'오류가 발생했습니다');const escMsg=escapeHTML(e.message);const escQ=escapeHTML(query);
+        resultContent.innerHTML=`<div class="p-6 bg-red-50 rounded-xl border border-red-200 text-red-700"><p class="font-semibold mb-2">⚠️ ${escMsg}</p><p class="text-sm text-gray-600 mb-3">API 키 확인 또는 잠시 후 다시 시도해 주세요.</p><button type="button" class="btn-primary px-4 py-2 rounded-lg" onclick="(${fetchGemini.toString()})('${escQ}')">다시 시도</button></div>`;inViewSmooth(searchResults)}
+      finally{buttonContent.textContent='💡 지금 바로 분석하기';searchButton.disabled=false}
+    };
+
+    const generateQuiz=async obj=>{quizContent.innerHTML='<div class="flex items-center justify-center py-8"><div class="loading-spinner"></div><span class="ml-2">퀴즈 생성 중...</span></div>';
+      const prompt=`"${obj.title}"에 대한 4지선다 퀴즈를 만들어주세요.\n- 실무에서 활용 가능한 수준의 문제\n- 보기는 명확하고 구별되게\n- 난이도는 초급~중급 수준\n\nJSON 형식으로만 반환:\n{\n  "question":"문제",\n  "options":["선택지1","선택지2","선택지3","선택지4"],\n  "answer":"정답",\n  "explanation":"정답 해설"\n}\n\n기반 데이터: ${JSON.stringify(obj)}`;
+      try{const raw=await callGemini(prompt);const quizObj=JSON.parse(raw.replace(/```json|```/g,'').trim());let answered=false;
+        const qWrap=document.createElement('div');qWrap.className='p-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl';
+        const qText=document.createElement('p');qText.className='text-lg font-semibold mb-6 text-gray-800';qText.textContent=`Q. ${quizObj.question}`;qWrap.appendChild(qText);
+        const feedback=document.createElement('div');feedback.className='mt-6 p-6 rounded-xl hidden';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');
+        quizObj.options.forEach((opt,idx)=>{const btn=document.createElement('button');btn.type='button';btn.className='block w-full text-left px-4 py-3 mb-3 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all font-medium';btn.textContent=`${idx+1}. ${opt}`;
+          btn.onclick=()=>{if(answered)return;answered=true;quizStats.total++;const all=qWrap.querySelectorAll('button');
+            if(opt===quizObj.answer){btn.classList.add('bg-green-100','border-green-500','text-green-700');feedback.className='mt-6 p-6 rounded-xl bg-green-50 border-2 border-green-200';feedback.innerHTML=`<div class="flex items-center gap-3 mb-3"><span class="text-3xl">🎉</span><span class="font-bold text-green-700 text-lg">정답입니다!</span></div><p class="text-green-700">${escapeHTML(quizObj.explanation)}</p>`;quizStats.correct++}
+            else{btn.classList.add('bg-red-100','border-red-500','text-red-700');all.forEach(b=>{if(b.textContent?.includes(quizObj.answer))b.classList.add('bg-green-100','border-green-500','text-green-700')});feedback.className='mt-6 p-6 rounded-xl bg-red-50 border-2 border-red-200';feedback.innerHTML=`<div class="flex items-center gap-3 mb-3"><span class="text-3xl">😅</span><span class="font-bold text-red-700 text-lg">아쉽네요!</span></div><p class="text-red-700 mb-2">정답: ${escapeHTML(quizObj.answer)}</p><p class="text-gray-700">${escapeHTML(quizObj.explanation)}</p>`}
+            qWrap.querySelectorAll('button').forEach(b=>b.disabled=true);updateProgress();feedback.classList.remove('hidden');
+            const nextBtn=document.createElement('button');nextBtn.type='button';nextBtn.className='mt-6 btn-primary px-8 py-3 rounded-lg font-semibold';nextBtn.textContent='🔄 다음 문제';nextBtn.onclick=()=>generateQuiz(currentObj);feedback.appendChild(nextBtn)};qWrap.appendChild(btn)});
+        qWrap.appendChild(feedback);quizContent.innerHTML='';quizContent.appendChild(qWrap)}
+      catch(e){quizContent.innerHTML=`<div class="p-6 bg-red-50 rounded-lg border border-red-200 text-red-700">퀴즈 생성에 실패했습니다: ${escapeHTML(e.message)}</div>`}
+    };
+
+    searchButton.addEventListener('click',()=>{const q=searchText.value.trim();if(q)fetchGemini(q)});
+    searchText.addEventListener('input',e=>{const q=e.target.value;clearIcon.classList.toggle('visible',!!q);handleAutocomplete(q)});
+    searchText.addEventListener('keydown',e=>{const items=dropdownContent.querySelectorAll('[role="option"]');
+      if(e.key==='ArrowDown'){e.preventDefault();highlightedIndex=Math.min(highlightedIndex+1,items.length-1);items.forEach((it,i)=>it.setAttribute('aria-selected',i===highlightedIndex));if(items[highlightedIndex]){items[highlightedIndex].id=`opt-${highlightedIndex}`;items[highlightedIndex].scrollIntoView({block:'nearest'});searchText.setAttribute('aria-activedescendant',`opt-${highlightedIndex}`)}}
+      else if(e.key==='ArrowUp'){e.preventDefault();highlightedIndex=Math.max(highlightedIndex-1,0);items.forEach((it,i)=>it.setAttribute('aria-selected',i===highlightedIndex));if(items[highlightedIndex]){items[highlightedIndex].id=`opt-${highlightedIndex}`;items[highlightedIndex].scrollIntoView({block:'nearest'});searchText.setAttribute('aria-activedescendant',`opt-${highlightedIndex}`)}}
+      else if(e.key==='Enter'){e.preventDefault();if(items[highlightedIndex])selectAutocomplete(items[highlightedIndex].dataset.term);else{const q=searchText.value.trim();if(q)fetchGemini(q)}}else if(e.key==='Escape'){hideAutocomplete()}
+    });
+    dropdownContent.addEventListener('click',e=>{const it=e.target.closest('[role="option"]');if(it)selectAutocomplete(it.dataset.term)});
+    clearIcon.addEventListener('click',()=>{searchText.value='';clearIcon.classList.remove('visible');hideAutocomplete();searchText.focus()});
+    document.addEventListener('click',e=>{const t=e.target.closest('[data-action="search-term"], .keyword-tag');if(t){const term=t.dataset.term||t.dataset.keyword;if(term){searchText.value=term;clearIcon.classList.add('visible');fetchGemini(term)}}if(!e.target.closest('.search-container'))hideAutocomplete()});
+    clearHistoryBtn.addEventListener('click',clearHistory);
+
+    let tipIdx=0,invTipIdx=0;const renderTips=()=>{const t=basicFinancialTips[tipIdx%basicFinancialTips.length];const it=investmentTips[invTipIdx%investmentTips.length];dailyTipBox.innerHTML=`<p class="font-semibold text-orange-600 mb-2">${escapeHTML(t.title)}</p><p>${escapeHTML(t.content)}</p>`;investmentTipBox.innerHTML=`<p class="font-semibold text-green-600 mb-2">${escapeHTML(it.title)}</p><p>${escapeHTML(it.content)}</p>`};
+    changeTipBtn.addEventListener('click',()=>{tipIdx++;renderTips()});changeInvTipBtn.addEventListener('click',()=>{invTipIdx++;renderTips()});
+
+    renderTips();renderRecentSearches();updateProgress();
+  })();
+  </script>
+</body>
+</html>
